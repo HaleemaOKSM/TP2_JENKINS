@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+
+    environment {
+        registry = "haleema143/tp2"
+        registryCredential = 'docker_hub'
+    }
+
+    stages {
+        stage('Cloning Git') {
+            steps {
+                git 'https://github.com/HaleemaOKSM/TP2_JENKINS.git'
+            }
+        }
+
+        stage('Building image') {
+            steps {
+                script {
+                    def dockerImage = docker.build("${registry}:${BUILD_NUMBER}")
+                    docker.withRegistry('', registryCredential) {
+                        dockerImage.push()
+                        dockerImage.push("latest")
+                    }
+                }
+            }
+        }
+
+        stage('Test image') {
+            steps {
+                script {
+                    echo "Docker image built successfully: ${registry}:${BUILD_NUMBER}"
+                    bat 'docker image inspect "%registry%:%BUILD_NUMBER%"'
+                }
+            }
+        }
+
+        stage('Deploy Image') {
+            steps {
+                script {
+                    echo "Image published to Docker Hub successfully."
+                }
+            }
+        }
+    }
+}
