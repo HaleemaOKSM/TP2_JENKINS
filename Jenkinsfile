@@ -16,11 +16,7 @@ pipeline {
         stage('Building image') {
             steps {
                 script {
-                    def dockerImage = docker.build("${registry}:${BUILD_NUMBER}")
-                    docker.withRegistry('', registryCredential) {
-                        dockerImage.push()
-                        dockerImage.push("latest")
-                    }
+                    dockerImage = docker.build("${registry}:${BUILD_NUMBER}")
                 }
             }
         }
@@ -28,17 +24,31 @@ pipeline {
         stage('Test image') {
             steps {
                 script {
-                    echo "Docker image built successfully: ${registry}:${BUILD_NUMBER}"
-                    bat 'docker image inspect "%registry%:%BUILD_NUMBER%"'
+                    bat "docker image inspect ${registry}:${BUILD_NUMBER}"
+                    echo "Tests passed"
                 }
             }
         }
 
-        stage('Deploy Image') {
+        stage('Publish Image') {
             steps {
                 script {
-                    echo "Image published to Docker Hub successfully."
+                    docker.withRegistry('', registryCredential) {
+                        dockerImage.push()
+                        dockerImage.push('latest')
+                    }
                 }
+            }
+        }
+
+        stage('Deploy image') {
+            steps {
+                bat '''
+                    set DOCKER_HOST=
+                    docker rm -f tp2-web 2>NUL
+                    docker run -d --name tp2-web -p 8081:80 %registry%:%BUILD_NUMBER%
+                    if errorlevel 1 exit /b 1
+                '''
             }
         }
     }
